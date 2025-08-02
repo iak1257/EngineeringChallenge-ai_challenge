@@ -1,4 +1,3 @@
-# Solve Intelligence Engineering Challenge
 
 ## Objective
 
