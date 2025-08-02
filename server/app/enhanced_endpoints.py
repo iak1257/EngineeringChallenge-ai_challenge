@@ -21,6 +21,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
+    current_document_content: str = ""  # 新增：当前文档内容
 
 
 async def websocket_enhanced_endpoint(websocket: WebSocket):
@@ -146,12 +147,12 @@ async def websocket_enhanced_endpoint(websocket: WebSocket):
 
 async def chat_with_ai(request: ChatRequest):
     """
-    AI聊天功能端点
+    增强版AI聊天功能端点
     
-    支持与AI进行对话，包括：
-    - 提问专利相关问题
-    - 请求生成图表
-    - 获取专利撰写建议
+    支持带文档上下文的AI对话，包括：
+    - 基于当前文档内容的专利问答
+    - 在文档中精确插入图表
+    - 专利权利要求分析和建议
     """
     try:
         ai = get_ai_enhanced()
@@ -159,15 +160,32 @@ async def chat_with_ai(request: ChatRequest):
         # 构建消息历史
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
         
-        # 获取AI响应
+        # 使用带文档上下文的聊天功能
         response_chunks = []
-        async for chunk in ai.chat_with_user(messages):
+        diagram_insertions = []
+        
+        async for chunk in ai.chat_with_document_context(messages, request.current_document_content):
             if chunk:
-                response_chunks.append(chunk)
+                # 检查是否是图表插入指令
+                if chunk.startswith("DIAGRAM_INSERT:"):
+                    try:
+                        diagram_data = json.loads(chunk[15:])  # 移除前缀
+                        diagram_insertions.append(diagram_data)
+                        logger.info(f"📊 收集到图表插入请求: {diagram_data}")
+                    except json.JSONDecodeError as e:
+                        logger.error(f"❌ 图表插入数据解析失败: {e}")
+                else:
+                    response_chunks.append(chunk)
         
         full_response = "".join(response_chunks)
         
-        return {"response": full_response}
+        # 构建响应，包含图表插入信息
+        result = {"response": full_response}
+        if diagram_insertions:
+            result["diagram_insertions"] = diagram_insertions
+            logger.info(f"✅ 返回响应包含 {len(diagram_insertions)} 个图表插入")
+        
+        return result
         
     except Exception as e:
         logger.error(f"聊天处理错误: {e}")

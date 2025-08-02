@@ -9,8 +9,17 @@ interface ChatMessage {
   timestamp?: Date;
 }
 
+interface DiagramInsertion {
+  insert_after_text: string;
+  mermaid_syntax: string;
+  diagram_type: string;
+  title?: string;
+}
+
 interface ChatPanelProps {
   className?: string;
+  getCurrentDocumentContent?: () => string;  // 新增：获取当前文档内容的回调
+  onDiagramInsertions?: (insertions: DiagramInsertion[]) => void;  // 新增：图表插入回调
 }
 
 // Mermaid图表组件
@@ -28,7 +37,7 @@ function MermaidDiagram({ chart }: { chart: string }) {
   return <div ref={ref} className="mermaid my-4" />;
 }
 
-export default function ChatPanel({ className }: ChatPanelProps) {
+export default function ChatPanel({ className, getCurrentDocumentContent, onDiagramInsertions }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -62,9 +71,13 @@ export default function ChatPanel({ className }: ChatPanelProps) {
       // 构建消息历史
       const messageHistory = [...messages, userMessage];
       
-      // 调用API
+      // 获取当前文档内容
+      const currentDocumentContent = getCurrentDocumentContent ? getCurrentDocumentContent() : "";
+      
+      // 调用API，包含当前文档内容
       const response = await axios.post("http://localhost:8000/api/chat", {
-        messages: messageHistory.map(({ role, content }) => ({ role, content }))
+        messages: messageHistory.map(({ role, content }) => ({ role, content })),
+        current_document_content: currentDocumentContent
       });
 
       // 添加AI响应
@@ -75,6 +88,22 @@ export default function ChatPanel({ className }: ChatPanelProps) {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // 处理图表插入
+      if (response.data.diagram_insertions && response.data.diagram_insertions.length > 0) {
+        console.log("📊 聊天收到图表插入请求:", response.data.diagram_insertions);
+        console.log("📊 onDiagramInsertions回调是否存在:", !!onDiagramInsertions);
+        if (onDiagramInsertions) {
+          console.log("📊 正在调用图表插入回调...");
+          onDiagramInsertions(response.data.diagram_insertions);
+          console.log("📊 图表插入回调已调用");
+        } else {
+          console.error("❌ 图表插入回调不存在，无法插入图表到文档");
+        }
+      } else {
+        console.log("📊 AI响应中没有图表插入数据");
+        console.log("📊 完整响应:", response.data);
+      }
     } catch (error) {
       console.error("聊天错误:", error);
       

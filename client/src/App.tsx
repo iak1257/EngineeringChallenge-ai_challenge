@@ -5,6 +5,7 @@ import LoadingOverlay from "./internal/LoadingOverlay";
 import Logo from "./assets/logo.png";
 import ChatPanel from "./ChatPanel";
 import { findTextInDocument, replaceText } from "./internal/HighlightExtension";
+import { insertDiagramAfterText } from "./internal/MermaidExtension";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -43,6 +44,13 @@ interface AISuggestion {
   suggestion: string;
   originalText?: string;  // 新增：原始文本（用于精确匹配）
   replaceTo?: string;     // 新增：建议替换的文本
+}
+
+interface DiagramInsertion {
+  insert_after_text: string;
+  mermaid_syntax: string;
+  diagram_type: string;
+  title?: string;
 }
 
 interface AppState {
@@ -563,6 +571,41 @@ function App() {
   }, []);
 
   /**
+   * 处理图表插入请求
+   * Handle diagram insertion requests
+   */
+  const handleDiagramInsertions = useCallback((insertions: DiagramInsertion[]) => {
+    console.log('📊 处理图表插入请求:', insertions);
+    
+    if (!editorRef.current) {
+      console.error('❌ 编辑器实例未准备就绪');
+      return;
+    }
+
+    insertions.forEach((insertion, index) => {
+      console.log(`📊 插入图表 ${index + 1}:`, insertion);
+      
+      const success = insertDiagramAfterText(
+        editorRef.current,
+        insertion.insert_after_text,
+        insertion.mermaid_syntax,
+        insertion.title
+      );
+      
+      if (success) {
+        console.log(`✅ 图表 ${index + 1} 插入成功`);
+        // 标记文档有未保存的更改
+        setAppState(prev => ({
+          ...prev,
+          hasUnsavedChanges: true
+        }));
+      } else {
+        console.error(`❌ 图表 ${index + 1} 插入失败: 找不到文本 "${insertion.insert_after_text}"`);
+      }
+    });
+  }, []);
+
+  /**
    * 接受AI建议并应用到文档
    * Accept AI suggestion and apply to document
    */
@@ -836,6 +879,7 @@ function App() {
                   onProcessingStatus={handleAIProcessingStatus}
                   onManualAnalysis={registerManualAnalysis}
                   onEditorReady={handleEditorReady}
+                  onDiagramInsertions={handleDiagramInsertions}
                 />
               ) : (
                 <div className="h-full flex items-center justify-center text-gray-500">
@@ -935,16 +979,6 @@ function App() {
               {/* 标签页导航 */}
               <div className="flex border-b border-gray-200">
                 <button
-                  onClick={() => setAppState(prev => ({ ...prev, activeRightTab: 'suggestions' }))}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                    appState.activeRightTab === 'suggestions'
-                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-                  }`}
-                >
-                  🤖 AI建议
-                </button>
-                <button
                   onClick={() => setAppState(prev => ({ ...prev, activeRightTab: 'chat' }))}
                   className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                     appState.activeRightTab === 'chat'
@@ -954,11 +988,25 @@ function App() {
                 >
                   💬 AI聊天
                 </button>
+                <button
+                  onClick={() => setAppState(prev => ({ ...prev, activeRightTab: 'suggestions' }))}
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                    appState.activeRightTab === 'suggestions'
+                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
+                  🤖 AI建议
+                </button>
               </div>
 
               {/* 标签页内容 */}
               {appState.activeRightTab === 'chat' ? (
-                <ChatPanel className="flex-1" />
+                <ChatPanel 
+                  className="flex-1" 
+                  getCurrentDocumentContent={() => editorRef.current?.getHTML() || ""}
+                  onDiagramInsertions={handleDiagramInsertions}
+                />
               ) : (
                 <div className="flex-1 p-4 overflow-y-auto">
                   {/* AI建议显示区域 */}

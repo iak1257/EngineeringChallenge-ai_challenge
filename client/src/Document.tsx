@@ -14,8 +14,16 @@ interface AISuggestion {
   replaceTo?: string;     // 新增：建议替换的文本
 }
 
+interface DiagramInsertion {
+  insert_after_text: string;
+  mermaid_syntax: string;
+  diagram_type: string;
+  title?: string;
+}
+
 interface AIResponse {
   issues: AISuggestion[];
+  diagram_insertions?: DiagramInsertion[];
 }
 
 interface WebSocketMessage {
@@ -33,6 +41,7 @@ export interface DocumentProps {
   onProcessingStatus?: (isProcessing: boolean, message?: string) => void;  // 处理状态回调
   onManualAnalysis?: (analysisFunction: () => void) => void;  // 注册手动分析函数的回调
   onEditorReady?: (editor: any) => void;  // 新增：编辑器实例回调
+  onDiagramInsertions?: (insertions: DiagramInsertion[]) => void;  // 新增：图表插入回调
 }
 
 // 使用增强版WebSocket端点（支持Function Calling）
@@ -46,7 +55,8 @@ export default function Document({
   onAISuggestions,
   onProcessingStatus,
   onManualAnalysis,
-  onEditorReady
+  onEditorReady,
+  onDiagramInsertions
 }: DocumentProps) {
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   // const [lastAnalyzedContent, setLastAnalyzedContent] = useState<string>("");  // 暂时注释，将来可能需要
@@ -102,7 +112,16 @@ export default function Document({
             setIsAIProcessing(false);
             if (message.data?.issues) {
               onAISuggestions?.(message.data.issues);
-              onProcessingStatus?.(false, `AI分析完成，发现${message.data.issues.length}个建议`);
+              let statusMessage = `AI分析完成，发现${message.data.issues.length}个建议`;
+              
+              // 处理图表插入
+              if (message.data?.diagram_insertions && message.data.diagram_insertions.length > 0) {
+                console.log("📊 收到图表插入请求:", message.data.diagram_insertions);
+                onDiagramInsertions?.(message.data.diagram_insertions);
+                statusMessage += `，${message.data.diagram_insertions.length}个图表插入`;
+              }
+              
+              onProcessingStatus?.(false, statusMessage);
             }
             break;
             

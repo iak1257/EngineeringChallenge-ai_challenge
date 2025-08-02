@@ -157,7 +157,7 @@ FUNCTION_TOOLS = [
         "type": "function", 
         "function": {
             "name": "create_diagram",
-            "description": "Generate a diagram using Mermaid syntax",
+            "description": "Generate a diagram using Mermaid syntax for chat responses",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -176,6 +176,36 @@ FUNCTION_TOOLS = [
                     }
                 },
                 "required": ["mermaid_syntax", "diagram_type"]
+            }
+        }
+    },
+    {
+        "type": "function", 
+        "function": {
+            "name": "insert_diagram",
+            "description": "Insert a Mermaid diagram into the document after specified text",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "insert_after_text": {
+                        "type": "string",
+                        "description": "The exact text in the document after which to insert the diagram"
+                    },
+                    "mermaid_syntax": {
+                        "type": "string",
+                        "description": "The Mermaid diagram syntax code"
+                    },
+                    "diagram_type": {
+                        "type": "string",
+                        "enum": ["flowchart", "sequence", "class", "er", "gantt", "pie", "mindmap"],
+                        "description": "The type of diagram to create"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "The title or description of the diagram"
+                    }
+                },
+                "required": ["insert_after_text", "mermaid_syntax", "diagram_type"]
             }
         }
     }

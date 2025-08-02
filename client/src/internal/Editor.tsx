@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Highlight } from "./HighlightExtension";
+import { MermaidNode } from "./MermaidExtension";
 import "./highlight.css";
 
 const extensions = [
@@ -10,6 +11,11 @@ const extensions = [
     multicolor: true,
     HTMLAttributes: {
       class: 'text-highlight',
+    },
+  }),
+  MermaidNode.configure({
+    HTMLAttributes: {
+      class: 'mermaid-node',
     },
   }),
 ];
